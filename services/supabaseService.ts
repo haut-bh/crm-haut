@@ -185,6 +185,24 @@ export class SupabaseService {
     }));
   }
 
+  async addLead(data: { name: string; email: string; phone: string; budget: string; watchInterest: string }): Promise<void> {
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('leads')
+      .insert({
+        nome: data.name,
+        email: data.email || null,
+        telefone: data.phone || null,
+        orcamento_disp: data.budget || null,
+        relogio_interesse: data.watchInterest || null,
+        etapa_kanban: 'Novo Lead',
+        created_at: now,
+        ultima_interecao: now,
+      });
+
+    if (error) throw new Error(`Erro ao criar lead: ${error.message}`);
+  }
+
   async addNote(leadId: string, content: string): Promise<void> {
     const { error } = await supabase
       .from('lead_notes')
