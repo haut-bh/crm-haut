@@ -185,7 +185,7 @@ export class SupabaseService {
     }));
   }
 
-  async addLead(data: { name: string; email: string; phone: string; budget: string; watchInterest: string }): Promise<void> {
+  async addLead(data: { name: string; email: string; phone: string; budget: string; watchInterest: string; objetivo?: string; qualificado?: boolean }): Promise<void> {
     const now = new Date().toISOString();
     const { error } = await supabase
       .from('leads')
@@ -195,6 +195,8 @@ export class SupabaseService {
         telefone: data.phone || null,
         orcamento_disp: data.budget || null,
         relogio_interesse: data.watchInterest || null,
+        objetivo: data.objetivo || null,
+        qualificado: data.qualificado ?? false,
         etapa_kanban: 'Novo Lead',
         created_at: now,
         ultima_interecao: now,

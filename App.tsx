@@ -37,12 +37,12 @@ const App: React.FC = () => {
 
   // Global "Novo Lead" modal
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false);
-  const [leadForm, setLeadForm] = useState({ name: '', email: '', phone: '', budget: '', watchInterest: '' });
+  const [leadForm, setLeadForm] = useState({ name: '', email: '', phone: '', budget: '', watchInterest: '', objetivo: '', qualificado: false });
   const [leadSaving, setLeadSaving] = useState(false);
   const [leadError, setLeadError] = useState<string | null>(null);
 
   const openNewLeadModal = () => {
-    setLeadForm({ name: '', email: '', phone: '', budget: '', watchInterest: '' });
+    setLeadForm({ name: '', email: '', phone: '', budget: '', watchInterest: '', objetivo: '', qualificado: false });
     setLeadError(null);
     setIsNewLeadOpen(true);
   };
@@ -264,6 +264,32 @@ const App: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Relógio de Interesse</label>
                 <input type="text" value={leadForm.watchInterest} onChange={e => setLeadForm({ ...leadForm, watchInterest: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-chronos-500 focus:outline-none" placeholder="Ex: Rolex Submariner" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Objetivo</label>
+                <div className="flex gap-3">
+                  {['Compra', 'Venda', 'Troca'].map(op => (
+                    <button key={op} type="button"
+                      onClick={() => setLeadForm({ ...leadForm, objetivo: leadForm.objetivo === op ? '' : op })}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                        leadForm.objetivo === op
+                          ? 'bg-chronos-900 text-white border-chronos-900'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-chronos-400'
+                      }`}>
+                      {op}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Lead Qualificado</p>
+                  <p className="text-xs text-gray-400">Marque se este lead já foi qualificado</p>
+                </div>
+                <button type="button" onClick={() => setLeadForm({ ...leadForm, qualificado: !leadForm.qualificado })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${leadForm.qualificado ? 'bg-chronos-700' : 'bg-gray-300'}`}>
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${leadForm.qualificado ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
               </div>
             </div>
             {leadError && (
