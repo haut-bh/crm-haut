@@ -7,6 +7,8 @@ export interface WatchInterest {
   reference: string;
   price: number;
   image: string;
+  size?: string;
+  year?: string;
 }
 
 export interface Note {
