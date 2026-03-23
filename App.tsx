@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  KanbanSquare, 
-  Users, 
-  Package, 
-  BarChart3, 
-  Settings, 
-  HelpCircle, 
-  Bell, 
-  Search, 
+import {
+  LayoutDashboard,
+  KanbanSquare,
+  Users,
+  Package,
+  BarChart3,
+  Settings,
+  HelpCircle,
+  Bell,
+  Search,
   Plus,
   Diamond,
   Menu,
   X,
-  LogOut
+  LogOut,
+  UserPlus
 } from 'lucide-react';
+import { supabaseService } from './services/supabaseService';
 
 import Dashboard from './components/Dashboard';
 import Pipeline from './components/Pipeline';
@@ -32,6 +34,32 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Global "Novo Lead" modal
+  const [isNewLeadOpen, setIsNewLeadOpen] = useState(false);
+  const [leadForm, setLeadForm] = useState({ name: '', email: '', phone: '', budget: '', watchInterest: '' });
+  const [leadSaving, setLeadSaving] = useState(false);
+  const [leadError, setLeadError] = useState<string | null>(null);
+
+  const openNewLeadModal = () => {
+    setLeadForm({ name: '', email: '', phone: '', budget: '', watchInterest: '' });
+    setLeadError(null);
+    setIsNewLeadOpen(true);
+  };
+
+  const handleNewLead = async () => {
+    if (!leadForm.name.trim()) { setLeadError('O nome do lead é obrigatório.'); return; }
+    setLeadSaving(true);
+    setLeadError(null);
+    try {
+      await supabaseService.addLead(leadForm);
+      setIsNewLeadOpen(false);
+    } catch (err: any) {
+      setLeadError(err?.message || 'Erro ao salvar. Tente novamente.');
+    } finally {
+      setLeadSaving(false);
+    }
+  };
 
   const handleLeadClick = (lead: Lead) => {
     setSelectedLead(lead);
@@ -160,11 +188,11 @@ const App: React.FC = () => {
                     <Bell size={20} />
                     <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 </button>
-                <button 
-                  onClick={() => setCurrentView('pipeline')}
-                  className="hidden md:flex items-center space-x-2 bg-chronos-900 hover:bg-chronos-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-chronos-900/20 transition-all"
+                <button
+                  onClick={openNewLeadModal}
+                  className="flex items-center space-x-2 bg-chronos-900 hover:bg-chronos-800 text-white px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-chronos-900/20 transition-all"
                 >
-                    <Plus size={18} />
+                    <UserPlus size={18} />
                     <span>Novo Lead</span>
                 </button>
             </div>
@@ -201,6 +229,60 @@ const App: React.FC = () => {
             {renderContent()}
         </div>
       </main>
+      {/* Global Novo Lead Modal */}
+      {isNewLeadOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl mx-4">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-serif font-bold text-gray-900">Novo Lead</h2>
+              <button onClick={() => setIsNewLeadOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome <span className="text-red-400">*</span></label>
+                <input type="text" value={leadForm.name} onChange={e => setLeadForm({ ...leadForm, name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-chronos-500 focus:outline-none" placeholder="Ex: João Silva" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                  <input type="text" value={leadForm.phone} onChange={e => setLeadForm({ ...leadForm, phone: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-chronos-500 focus:outline-none" placeholder="(11) 99999-9999" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                  <input type="email" value={leadForm.email} onChange={e => setLeadForm({ ...leadForm, email: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-chronos-500 focus:outline-none" placeholder="email@exemplo.com" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Orçamento Disponível</label>
+                <input type="text" value={leadForm.budget} onChange={e => setLeadForm({ ...leadForm, budget: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-chronos-500 focus:outline-none" placeholder="Ex: 50.000" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Relógio de Interesse</label>
+                <input type="text" value={leadForm.watchInterest} onChange={e => setLeadForm({ ...leadForm, watchInterest: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-chronos-500 focus:outline-none" placeholder="Ex: Rolex Submariner" />
+              </div>
+            </div>
+            {leadError && (
+              <div className="mt-4 flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                <X size={16} className="mt-0.5 shrink-0" />{leadError}
+              </div>
+            )}
+            <div className="flex justify-end space-x-3 mt-8">
+              <button onClick={() => setIsNewLeadOpen(false)} disabled={leadSaving}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50">Cancelar</button>
+              <button onClick={handleNewLead} disabled={leadSaving}
+                className="px-6 py-2 bg-chronos-900 text-white rounded-lg hover:bg-chronos-800 transition-colors font-medium shadow-md disabled:opacity-60 flex items-center gap-2">
+                {leadSaving && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>}
+                Salvar Lead
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
