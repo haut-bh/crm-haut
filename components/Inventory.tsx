@@ -1,27 +1,34 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { supabaseService } from '../services/supabaseService';
 import { WatchInterest } from '../types';
-import { Plus, Search, Tag } from 'lucide-react';
+import { Plus, Search, Tag, Upload, X } from 'lucide-react';
 
 const Inventory: React.FC = () => {
     const [inventory, setInventory] = useState<WatchInterest[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<WatchInterest | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [formData, setFormData] = useState({
         brand: '',
         model: '',
         size: '',
         year: '',
-        price: ''
+        price: '',
+        imageUrl: '',
     });
 
+    const fetchInventory = async () => {
+        const data = await supabaseService.getInventory();
+        setInventory(data);
+        setLoading(false);
+    };
+
     useEffect(() => {
-        const fetchInventory = async () => {
-            const data = await supabaseService.getInventory();
-            setInventory(data);
-            setLoading(false);
-        };
         fetchInventory();
 
         return supabaseService.subscribeToInventory((updatedInventory) => {
@@ -30,40 +37,89 @@ const Inventory: React.FC = () => {
     }, []);
 
     const handleOpenModal = (item?: WatchInterest) => {
+        setSaveError(null);
+        setImageFile(null);
         if (item) {
             setEditingItem(item);
+            setImagePreview(item.image && !item.image.includes('placehold.co') ? item.image : null);
             setFormData({
                 brand: item.brand,
                 model: item.model,
                 size: item.size || '',
                 year: item.year || '',
-                price: item.price.toString()
+                price: item.price.toString(),
+                imageUrl: item.image && !item.image.includes('placehold.co') ? item.image : '',
             });
         } else {
             setEditingItem(null);
-            setFormData({ brand: '', model: '', size: '', year: '', price: '' });
+            setImagePreview(null);
+            setFormData({ brand: '', model: '', size: '', year: '', price: '', imageUrl: '' });
         }
         setIsModalOpen(true);
     };
 
+    const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setImageFile(file);
+        setImagePreview(URL.createObjectURL(file));
+        setFormData(prev => ({ ...prev, imageUrl: '' }));
+    };
+
+    const handleImageUrlChange = (url: string) => {
+        setFormData(prev => ({ ...prev, imageUrl: url }));
+        if (url) {
+            setImageFile(null);
+            setImagePreview(url);
+        } else {
+            setImagePreview(null);
+        }
+    };
+
     const handleSave = async () => {
-        const priceValue = parseFloat(formData.price.replace(/[^\d.,]/g, '').replace(',', '.')); // Simple parsing for input
+        if (!formData.brand || !formData.model) {
+            setSaveError('Marca e Modelo são obrigatórios.');
+            return;
+        }
+        setSaving(true);
+        setSaveError(null);
 
         try {
+            const priceValue = parseFloat(formData.price.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+
+            // Upload da foto se arquivo selecionado
+            let finalImageUrl = formData.imageUrl || undefined;
+            if (imageFile) {
+                finalImageUrl = await supabaseService.uploadWatchImage(imageFile);
+            }
+
             if (editingItem) {
                 await supabaseService.updateInventoryItem(editingItem.id, {
-                    ...formData,
-                    price: priceValue
+                    brand: formData.brand,
+                    model: formData.model,
+                    size: formData.size,
+                    year: formData.year,
+                    price: priceValue,
+                    image: finalImageUrl,
                 });
             } else {
                 await supabaseService.addInventoryItem({
-                    ...formData,
-                    price: priceValue
+                    brand: formData.brand,
+                    model: formData.model,
+                    size: formData.size,
+                    year: formData.year,
+                    price: priceValue,
+                    image: finalImageUrl,
                 });
             }
+
+            // Refresh explícito — não depender só do real-time
+            await fetchInventory();
             setIsModalOpen(false);
-        } catch (error) {
-            console.error("Error saving item", error);
+        } catch (error: any) {
+            setSaveError(error?.message || 'Erro ao salvar. Tente novamente.');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -87,7 +143,6 @@ const Inventory: React.FC = () => {
                         className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-chronos-500"
                     />
                 </div>
-                {/* Filters */}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -125,7 +180,6 @@ const Inventory: React.FC = () => {
                     </div>
                 )) : (
                     <div className="col-span-full text-center py-20 text-gray-500">
-                        {/* Empty State */}
                         <div className="bg-gray-50 rounded-2xl p-10 border border-dashed border-gray-200 inline-block">
                             <Tag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                             <h3 className="text-lg font-medium text-gray-900">Estoque Vazio</h3>
@@ -138,10 +192,49 @@ const Inventory: React.FC = () => {
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl transform transition-all scale-100">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl transform transition-all scale-100 max-h-[90vh] overflow-y-auto">
                         <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6">{editingItem ? 'Editar Relógio' : 'Adicionar Novo Relógio'}</h2>
 
                         <div className="space-y-4">
+                            {/* Preview da foto */}
+                            <div className="flex flex-col items-center gap-3">
+                                <div className="w-36 h-36 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden">
+                                    {imagePreview ? (
+                                        <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
+                                    ) : (
+                                        <span className="text-gray-300 text-xs text-center px-2">Sem foto</span>
+                                    )}
+                                </div>
+
+                                {/* Botão upload */}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handleImageFileChange}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                    <Upload size={14} /> Escolher Foto
+                                </button>
+
+                                {/* Campo de URL alternativo */}
+                                <div className="w-full">
+                                    <label className="block text-xs text-gray-400 mb-1">Ou cole a URL da imagem</label>
+                                    <input
+                                        type="text"
+                                        placeholder="https://..."
+                                        value={formData.imageUrl}
+                                        onChange={e => handleImageUrlChange(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-chronos-500 focus:outline-none"
+                                    />
+                                </div>
+                            </div>
+
                             {editingItem && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Referência</label>
@@ -157,7 +250,7 @@ const Inventory: React.FC = () => {
                                 <p className="text-xs text-gray-400">A referência será gerada automaticamente ao salvar.</p>
                             )}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Marca</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Marca <span className="text-red-400">*</span></label>
                                 <input
                                     type="text"
                                     value={formData.brand}
@@ -166,7 +259,7 @@ const Inventory: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Modelo <span className="text-red-400">*</span></label>
                                 <input
                                     type="text"
                                     value={formData.model}
@@ -205,17 +298,27 @@ const Inventory: React.FC = () => {
                             </div>
                         </div>
 
+                        {saveError && (
+                            <div className="mt-4 flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                                <X size={16} className="mt-0.5 shrink-0" />
+                                {saveError}
+                            </div>
+                        )}
+
                         <div className="flex justify-end space-x-3 mt-8">
                             <button
                                 onClick={() => setIsModalOpen(false)}
-                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                disabled={saving}
+                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleSave}
-                                className="px-6 py-2 bg-chronos-900 text-white rounded-lg hover:bg-chronos-800 transition-colors font-medium shadow-md hover:shadow-lg"
+                                disabled={saving}
+                                className="px-6 py-2 bg-chronos-900 text-white rounded-lg hover:bg-chronos-800 transition-colors font-medium shadow-md hover:shadow-lg disabled:opacity-60 flex items-center gap-2"
                             >
+                                {saving && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>}
                                 {editingItem ? 'Salvar Alterações' : 'Adicionar Relógio'}
                             </button>
                         </div>

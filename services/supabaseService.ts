@@ -199,6 +199,23 @@ export class SupabaseService {
 
   // --- INVENTORY (ESTOQUE) ---
 
+  async uploadWatchImage(file: File): Promise<string> {
+    const ext = file.name.split('.').pop();
+    const fileName = `watch_${Date.now()}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from('watch-images')
+      .upload(fileName, file, { upsert: true });
+
+    if (error) throw new Error(`Erro ao enviar foto: ${error.message}`);
+
+    const { data } = supabase.storage
+      .from('watch-images')
+      .getPublicUrl(fileName);
+
+    return data.publicUrl;
+  }
+
   async getInventory(): Promise<WatchInterest[]> {
     const { data, error } = await supabase
       .from('estoque')
@@ -217,11 +234,11 @@ export class SupabaseService {
       size: item.tamanho || '',
       year: item.ano || '',
       price: parseFloat(item.preco_venda?.replace('R$', '').trim().replace(/\./g, '').replace(',', '.') || '0'),
-      image: 'https://placehold.co/300x300',
+      image: item.foto_url || 'https://placehold.co/300x300',
     }));
   }
 
-  async addInventoryItem(item: Omit<WatchInterest, 'id' | 'image' | 'reference'> & { image?: string }): Promise<void> {
+  async addInventoryItem(item: Omit<WatchInterest, 'id' | 'reference'> & { image?: string }): Promise<void> {
     // Format price to "R$ XX.XXX,XX"
     const formattedPrice = `R$ ${item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -244,27 +261,29 @@ export class SupabaseService {
         ano: item.year,
         preco_venda: formattedPrice,
         ref: ref,
+        foto_url: item.image || null,
       });
 
-    if (error) console.error('Error adding inventory item:', error);
+    if (error) throw new Error(`Erro ao adicionar relógio: ${error.message}`);
   }
 
-  async updateInventoryItem(id: string, item: Partial<WatchInterest>): Promise<void> {
+  async updateInventoryItem(id: string, item: Partial<WatchInterest> & { image?: string }): Promise<void> {
     const updates: any = {};
     if (item.brand) updates.marca = item.brand;
     if (item.model) updates.modelo = item.model;
-    if (item.size) updates.tamanho = item.size;
-    if (item.year) updates.ano = item.year;
+    if (item.size !== undefined) updates.tamanho = item.size;
+    if (item.year !== undefined) updates.ano = item.year;
     if (item.price !== undefined) {
       updates.preco_venda = `R$ ${item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
+    if (item.image !== undefined) updates.foto_url = item.image || null;
 
     const { error } = await supabase
       .from('estoque')
       .update(updates)
       .eq('id', id);
 
-    if (error) console.error('Error updating inventory item:', error);
+    if (error) throw new Error(`Erro ao atualizar relógio: ${error.message}`);
   }
 
   subscribeToInventory(onUpdate: (items: WatchInterest[]) => void): () => void {
