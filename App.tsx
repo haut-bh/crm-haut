@@ -126,7 +126,7 @@ const App: React.FC = () => {
           <div className="w-8 h-8 bg-chronos-900 rounded-lg flex items-center justify-center">
             <span className="text-white font-serif font-bold text-lg">C</span>
           </div>
-          <span className="text-xl font-serif font-bold text-gray-900 tracking-tight">Chronos</span>
+          <span className="text-xl font-serif font-bold text-gray-900 tracking-tight">CRM Haut</span>
         </div>
 
         {/* Navigation */}
@@ -139,25 +139,6 @@ const App: React.FC = () => {
           <NavItem view="analytics" icon={BarChart3} label="Análises" />
         </div>
 
-        {/* User Profile & Logout */}
-        <div className="p-4 border-t border-gray-100 bg-gray-50/50">
-            <div className="mb-4">
-                <button className="w-full flex items-center space-x-3 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-                    <LogOut size={20} />
-                    <span className="font-medium text-sm">Sair</span>
-                </button>
-            </div>
-            
-            <div className="flex items-center space-x-3 cursor-pointer hover:bg-white p-2 rounded-xl transition-all border border-transparent hover:border-gray-200 hover:shadow-sm">
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold overflow-hidden">
-                    <img src="https://picsum.photos/id/64/100/100" alt="User" />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900 truncate">Alex Silva</p>
-                    <p className="text-xs text-gray-500 truncate">alex@chronos.com</p>
-                </div>
-            </div>
-        </div>
       </aside>
 
       {/* Main Content */}
@@ -169,7 +150,7 @@ const App: React.FC = () => {
                 <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-gray-600">
                     <Menu size={24} />
                 </button>
-                <span className="font-serif font-bold text-xl">Chronos</span>
+                <span className="font-serif font-bold text-xl">CRM Haut</span>
              </div>
 
             {/* Search Bar */}
@@ -203,7 +184,7 @@ const App: React.FC = () => {
             <div className="absolute inset-0 z-50 bg-gray-900/50 md:hidden flex" onClick={() => setMobileMenuOpen(false)}>
                 <div className="w-64 bg-white h-full shadow-2xl p-4 flex flex-col" onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center mb-8">
-                         <span className="text-xl font-serif font-bold text-gray-900">Chronos</span>
+                         <span className="text-xl font-serif font-bold text-gray-900">CRM Haut</span>
                          <button onClick={() => setMobileMenuOpen(false)}><X size={24} /></button>
                     </div>
                     <div className="space-y-2">
@@ -213,12 +194,6 @@ const App: React.FC = () => {
                         <NavItem view="clients" icon={Users} label="Clientes" />
                         <NavItem view="analytics" icon={BarChart3} label="Análises" />
                         
-                        <div className="border-t border-gray-100 my-4 pt-4">
-                             <button className="w-full flex items-center space-x-3 px-4 py-3 text-red-600 rounded-xl transition-colors">
-                                <LogOut size={20} />
-                                <span>Sair</span>
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>

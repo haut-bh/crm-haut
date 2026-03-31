@@ -82,7 +82,7 @@ const Dashboard: React.FC = () => {
           <p className="text-xs font-bold text-chronos-600 uppercase tracking-wider flex items-center gap-2">
             <Clock size={14} /> {currentDate}
           </p>
-          <h1 className="text-3xl font-serif font-bold text-gray-900">{greeting}, Alex.</h1>
+          <h1 className="text-3xl font-serif font-bold text-gray-900">{greeting}.</h1>
           <p className="text-gray-500">Você tem <span className="font-bold text-gray-900">{stats.activeLeads} oportunidades</span> ativas.</p>
         </div>
 
