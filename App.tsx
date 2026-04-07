@@ -17,6 +17,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { supabaseService } from './services/supabaseService';
+import logoHaut from './Logo Haut .png';
 
 import Dashboard from './components/Dashboard';
 import Pipeline from './components/Pipeline';
@@ -123,9 +124,7 @@ const App: React.FC = () => {
       <aside className="w-64 bg-white border-r border-gray-100 flex flex-col hidden md:flex">
         {/* Logo */}
         <div className="p-8 flex items-center space-x-3">
-          <div className="w-8 h-8 bg-chronos-900 rounded-lg flex items-center justify-center">
-            <span className="text-white font-serif font-bold text-lg">C</span>
-          </div>
+          <img src={logoHaut} alt="Haut Logo" className="h-8 w-auto object-contain" />
           <span className="text-xl font-serif font-bold text-gray-900 tracking-tight">CRM Haut</span>
         </div>
 
@@ -150,6 +149,7 @@ const App: React.FC = () => {
                 <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-gray-600">
                     <Menu size={24} />
                 </button>
+                <img src={logoHaut} alt="Haut Logo" className="h-6 w-auto object-contain" />
                 <span className="font-serif font-bold text-xl">CRM Haut</span>
              </div>
 
@@ -184,7 +184,10 @@ const App: React.FC = () => {
             <div className="absolute inset-0 z-50 bg-gray-900/50 md:hidden flex" onClick={() => setMobileMenuOpen(false)}>
                 <div className="w-64 bg-white h-full shadow-2xl p-4 flex flex-col" onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center mb-8">
-                         <span className="text-xl font-serif font-bold text-gray-900">CRM Haut</span>
+                         <div className="flex items-center space-x-3">
+                             <img src={logoHaut} alt="Haut Logo" className="h-8 w-auto object-contain" />
+                             <span className="text-xl font-serif font-bold text-gray-900">CRM Haut</span>
+                         </div>
                          <button onClick={() => setMobileMenuOpen(false)}><X size={24} /></button>
                     </div>
                     <div className="space-y-2">
