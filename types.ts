@@ -6,6 +6,7 @@ export interface WatchInterest {
   model: string;
   reference: string;
   price: number;
+  precoCusto?: number;
   image: string;
   size?: string;
   year?: string;
@@ -36,6 +37,8 @@ export interface Lead {
   notes: Note[];
   tags: string[]; // e.g. "VIP Referral", "High Intent"
   addedAt: string;
+  valorFinalVenda?: number;
+  estoqueId?: string;
 }
 
 export interface Metric {

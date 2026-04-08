@@ -137,7 +137,7 @@ const Analytics: React.FC = () => {
                         <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                             <TrendingUp size={18} className="text-blue-600" /> Receita Estimada (Semanal)
                         </h3>
-                        <p className="text-sm text-gray-500">Baseado no orçamento de leads fechados.</p>
+                        <p className="text-sm text-gray-500">Baseado no valor final da venda registrado.</p>
                     </div>
                     <div className="flex-1 w-full min-h-0">
                         <ResponsiveContainer width="100%" height="100%">

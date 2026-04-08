@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabaseService } from '../services/supabaseService';
 import { WatchInterest } from '../types';
-import { Plus, Search, Tag, Upload, X } from 'lucide-react';
+import { Plus, Search, Tag, Upload, X, Trash2, AlertTriangle } from 'lucide-react';
 
 const Inventory: React.FC = () => {
     const [inventory, setInventory] = useState<WatchInterest[]>([]);
@@ -19,8 +19,13 @@ const Inventory: React.FC = () => {
         size: '',
         year: '',
         price: '',
+        precoCusto: '',
         imageUrl: '',
     });
+
+    // Delete state
+    const [itemToDelete, setItemToDelete] = useState<WatchInterest | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     const fetchInventory = async () => {
         const data = await supabaseService.getInventory();
@@ -48,12 +53,13 @@ const Inventory: React.FC = () => {
                 size: item.size || '',
                 year: item.year || '',
                 price: item.price.toString(),
+                precoCusto: item.precoCusto != null ? item.precoCusto.toString() : '',
                 imageUrl: item.image && !item.image.includes('placehold.co') ? item.image : '',
             });
         } else {
             setEditingItem(null);
             setImagePreview(null);
-            setFormData({ brand: '', model: '', size: '', year: '', price: '', imageUrl: '' });
+            setFormData({ brand: '', model: '', size: '', year: '', price: '', precoCusto: '', imageUrl: '' });
         }
         setIsModalOpen(true);
     };
@@ -86,8 +92,10 @@ const Inventory: React.FC = () => {
 
         try {
             const priceValue = parseFloat(formData.price.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+            const precoCustoValue = formData.precoCusto
+                ? parseFloat(formData.precoCusto.replace(/[^\d.,]/g, '').replace(',', '.')) || 0
+                : undefined;
 
-            // Upload da foto se arquivo selecionado
             let finalImageUrl = formData.imageUrl || undefined;
             if (imageFile) {
                 finalImageUrl = await supabaseService.uploadWatchImage(imageFile);
@@ -100,6 +108,7 @@ const Inventory: React.FC = () => {
                     size: formData.size,
                     year: formData.year,
                     price: priceValue,
+                    precoCusto: precoCustoValue,
                     image: finalImageUrl,
                 });
             } else {
@@ -109,17 +118,36 @@ const Inventory: React.FC = () => {
                     size: formData.size,
                     year: formData.year,
                     price: priceValue,
+                    precoCusto: precoCustoValue,
                     image: finalImageUrl,
                 });
             }
 
-            // Refresh explícito — não depender só do real-time
             await fetchInventory();
             setIsModalOpen(false);
         } catch (error: any) {
             setSaveError(error?.message || 'Erro ao salvar. Tente novamente.');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDeleteRequest = (item: WatchInterest, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setItemToDelete(item);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+        setDeleting(true);
+        try {
+            await supabaseService.deleteInventoryItem(itemToDelete.id);
+            await fetchInventory();
+            setItemToDelete(null);
+        } catch (error: any) {
+            console.error(error);
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -173,8 +201,22 @@ const Inventory: React.FC = () => {
                                 {watch.year && <span className="bg-gray-100 px-2 py-1 rounded">{watch.year}</span>}
                             </div>
                             <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                                <span className="text-lg font-bold text-chronos-700">R$ {watch.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                <button className="text-xs font-semibold text-gray-900 hover:text-chronos-600">Editar</button>
+                                <div>
+                                    <span className="text-lg font-bold text-chronos-700">R$ {watch.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                    {watch.precoCusto != null && watch.precoCusto > 0 && (
+                                        <p className="text-xs text-gray-400 mt-0.5">Custo: R$ {watch.precoCusto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button className="text-xs font-semibold text-gray-900 hover:text-chronos-600">Editar</button>
+                                    <button
+                                        onClick={(e) => handleDeleteRequest(watch, e)}
+                                        className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Excluir Relógio"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -189,7 +231,7 @@ const Inventory: React.FC = () => {
                 )}
             </div>
 
-            {/* Modal */}
+            {/* Add/Edit Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl transform transition-all scale-100 max-h-[90vh] overflow-y-auto">
@@ -206,7 +248,6 @@ const Inventory: React.FC = () => {
                                     )}
                                 </div>
 
-                                {/* Botão upload */}
                                 <input
                                     ref={fileInputRef}
                                     type="file"
@@ -222,7 +263,6 @@ const Inventory: React.FC = () => {
                                     <Upload size={14} /> Escolher Foto
                                 </button>
 
-                                {/* Campo de URL alternativo */}
                                 <div className="w-full">
                                     <label className="block text-xs text-gray-400 mb-1">Ou cole a URL da imagem</label>
                                     <input
@@ -288,12 +328,22 @@ const Inventory: React.FC = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Preço (R$)</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Venda (R$)</label>
                                 <input
                                     type="number"
                                     value={formData.price}
                                     onChange={e => setFormData({ ...formData, price: e.target.value })}
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-chronos-500 focus:outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Custo (R$)</label>
+                                <input
+                                    type="number"
+                                    value={formData.precoCusto}
+                                    onChange={e => setFormData({ ...formData, precoCusto: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-chronos-500 focus:outline-none"
+                                    placeholder="Opcional"
                                 />
                             </div>
                         </div>
@@ -320,6 +370,47 @@ const Inventory: React.FC = () => {
                             >
                                 {saving && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>}
                                 {editingItem ? 'Salvar Alterações' : 'Adicionar Relógio'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {itemToDelete && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm animate-fade-in px-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-100">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-red-50 rounded-full text-red-500">
+                                    <AlertTriangle size={24} />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900">Excluir Relógio</h3>
+                            </div>
+                            <button onClick={() => setItemToDelete(null)} className="text-gray-400 hover:text-gray-600">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <p className="text-gray-600 mb-6 leading-relaxed">
+                            Tem certeza que deseja excluir o relógio{' '}
+                            <span className="font-bold text-gray-900">{itemToDelete.brand} {itemToDelete.model}</span>?
+                            <br />Esta ação não pode ser desfeita.
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setItemToDelete(null)}
+                                disabled={deleting}
+                                className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                disabled={deleting}
+                                className="px-5 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all flex items-center gap-2 disabled:opacity-60"
+                            >
+                                {deleting && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>}
+                                <Trash2 size={18} /> Confirmar Exclusão
                             </button>
                         </div>
                     </div>

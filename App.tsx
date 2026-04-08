@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   KanbanSquare,
@@ -16,6 +16,8 @@ import {
   LogOut,
   UserPlus
 } from 'lucide-react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from './services/supabaseClient';
 import { supabaseService } from './services/supabaseService';
 import logoHaut from './Logo Haut .png';
 
@@ -26,6 +28,7 @@ import LeadDetail from './components/LeadDetail';
 import Clients from './components/Clients';
 import Inventory from './components/Inventory';
 import System from './components/System';
+import Login from './components/Login';
 import { Lead } from './types';
 
 // Types for navigation
@@ -35,6 +38,25 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Auth state: undefined = loading, null = not logged in, Session = logged in
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   // Global "Novo Lead" modal
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false);
@@ -85,7 +107,7 @@ const App: React.FC = () => {
       case 'analytics':
         return <Analytics />;
       case 'system':
-      case 'settings': // Alias for system in this context
+      case 'settings':
         return <System />;
       case 'lead-detail':
         return selectedLead ? <LeadDetail lead={selectedLead} onBack={handleBackToPipeline} /> : <Pipeline onLeadClick={handleLeadClick} />;
@@ -107,8 +129,8 @@ const App: React.FC = () => {
         setMobileMenuOpen(false);
       }}
       className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
-        currentView === view 
-          ? 'bg-chronos-50 text-chronos-700 font-semibold' 
+        currentView === view
+          ? 'bg-chronos-50 text-chronos-700 font-semibold'
           : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
       }`}
     >
@@ -117,9 +139,23 @@ const App: React.FC = () => {
     </button>
   );
 
+  // Loading state
+  if (session === undefined) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#f8fafc]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-chronos-900"></div>
+      </div>
+    );
+  }
+
+  // Not authenticated
+  if (session === null) {
+    return <Login />;
+  }
+
   return (
     <div className="flex h-screen bg-[#f8fafc] font-sans text-gray-900 overflow-hidden">
-      
+
       {/* Sidebar (Desktop) */}
       <aside className="w-64 bg-white border-r border-gray-100 flex flex-col hidden md:flex">
         {/* Logo */}
@@ -138,6 +174,16 @@ const App: React.FC = () => {
           <NavItem view="analytics" icon={BarChart3} label="Análises" />
         </div>
 
+        {/* Logout */}
+        <div className="p-4 border-t border-gray-100">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all"
+          >
+            <LogOut size={20} className="text-gray-400" />
+            <span>Sair</span>
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -156,9 +202,9 @@ const App: React.FC = () => {
             {/* Search Bar */}
             <div className="hidden md:flex relative w-96">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <input 
-                    type="text" 
-                    placeholder="Buscar clientes, relógios..." 
+                <input
+                    type="text"
+                    placeholder="Buscar clientes, relógios..."
                     className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-transparent hover:border-gray-200 focus:bg-white focus:border-chronos-500 rounded-xl text-sm transition-all focus:outline-none"
                 />
             </div>
@@ -190,13 +236,21 @@ const App: React.FC = () => {
                          </div>
                          <button onClick={() => setMobileMenuOpen(false)}><X size={24} /></button>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex-1">
                         <NavItem view="dashboard" icon={LayoutDashboard} label="Painel" />
                         <NavItem view="pipeline" icon={KanbanSquare} label="Pipeline" />
                         <NavItem view="inventory" icon={Package} label="Estoque" />
                         <NavItem view="clients" icon={Users} label="Clientes" />
                         <NavItem view="analytics" icon={BarChart3} label="Análises" />
-                        
+                    </div>
+                    <div className="pt-4 border-t border-gray-100">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all"
+                      >
+                        <LogOut size={20} className="text-gray-400" />
+                        <span>Sair</span>
+                      </button>
                     </div>
                 </div>
             </div>
@@ -207,6 +261,7 @@ const App: React.FC = () => {
             {renderContent()}
         </div>
       </main>
+
       {/* Global Novo Lead Modal */}
       {isNewLeadOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm">

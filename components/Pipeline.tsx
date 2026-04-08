@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Lead, LeadStatus } from '../types';
 import { supabaseService } from '../services/supabaseService';
-import { Search, Filter, ArrowUpDown, Calendar, Plus, MoreHorizontal, MessageSquare, Trash2, AlertTriangle, X, CheckSquare, Clock } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, Calendar, Plus, MoreHorizontal, MessageSquare, Trash2, AlertTriangle, X, CheckSquare, Clock, DollarSign, Check } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 // Helper para cores do status
@@ -29,7 +29,6 @@ interface LeadCardProps {
 
 // Componente LeadCard extraído e memoizado para performance
 const LeadCard = React.memo(({ lead, index, onClick, onDelete, isSelected, onToggleSelect }: LeadCardProps) => {
-    // Get last note for preview
     const lastNote = lead.notes.length > 0 ? lead.notes[lead.notes.length - 1] : null;
 
     return (
@@ -69,7 +68,7 @@ const LeadCard = React.memo(({ lead, index, onClick, onDelete, isSelected, onTog
                             </div>
                         )}
 
-                        {/* Selection Checkbox (Visible on hover or selected) */}
+                        {/* Selection Checkbox */}
                         <div
                             className={`absolute top-3 right-3 z-10 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}
                             onClick={(e) => {
@@ -127,7 +126,7 @@ const LeadCard = React.memo(({ lead, index, onClick, onDelete, isSelected, onTog
                                 </span>
                             ))}
 
-                            {/* Delete Action - Subtle */}
+                            {/* Delete Action */}
                             <button
                                 className="ml-auto p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                                 onClick={(e) => {
@@ -156,6 +155,11 @@ const Pipeline: React.FC<PipelineProps> = ({ onLeadClick }) => {
     const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
     const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+
+    // Ganho modal state
+    const [ganhoModalLead, setGanhoModalLead] = useState<{ id: string; previousLeads: Lead[] } | null>(null);
+    const [ganhoValor, setGanhoValor] = useState('');
+    const [ganhoSaving, setGanhoSaving] = useState(false);
 
     useEffect(() => {
         const fetchLeads = async () => {
@@ -186,19 +190,52 @@ const Pipeline: React.FC<PipelineProps> = ({ onLeadClick }) => {
             return;
         }
 
+        const newStatus = destination.droppableId as LeadStatus;
+
+        // Optimistic UI update
         const updatedLeads = leads.map(lead => {
             if (lead.id === draggableId) {
                 return {
                     ...lead,
-                    status: destination.droppableId as LeadStatus,
+                    status: newStatus,
                     lastStatusChange: new Date().toISOString()
                 };
             }
             return lead;
         });
-
         setLeads(updatedLeads);
-        await supabaseService.updateLeadStatus(draggableId, destination.droppableId as LeadStatus);
+
+        if (newStatus === 'Ganho') {
+            // Intercept: show modal before persisting
+            setGanhoValor('');
+            setGanhoModalLead({ id: draggableId, previousLeads: leads });
+        } else {
+            await supabaseService.updateLeadStatus(draggableId, newStatus);
+        }
+    };
+
+    const confirmGanho = async () => {
+        if (!ganhoModalLead) return;
+        const lead = leads.find(l => l.id === ganhoModalLead.id);
+        const valorNum = parseFloat(ganhoValor.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+        setGanhoSaving(true);
+        try {
+            await supabaseService.markLeadAsGanho(ganhoModalLead.id, valorNum, lead?.estoqueId);
+            setGanhoModalLead(null);
+            setGanhoValor('');
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setGanhoSaving(false);
+        }
+    };
+
+    const cancelGanho = () => {
+        if (ganhoModalLead) {
+            setLeads(ganhoModalLead.previousLeads);
+        }
+        setGanhoModalLead(null);
+        setGanhoValor('');
     };
 
     const handleDeleteRequest = useCallback((lead: Lead) => {
@@ -209,7 +246,6 @@ const Pipeline: React.FC<PipelineProps> = ({ onLeadClick }) => {
         if (leadToDelete) {
             await supabaseService.deleteLead(leadToDelete.id);
             setLeadToDelete(null);
-            // If the deleted lead was selected, remove it from selection
             if (selectedLeadIds.has(leadToDelete.id)) {
                 const newSelection = new Set(selectedLeadIds);
                 newSelection.delete(leadToDelete.id);
@@ -309,7 +345,6 @@ const Pipeline: React.FC<PipelineProps> = ({ onLeadClick }) => {
                             {stages.map((stage) => {
                                 const stageLeads = leads.filter(l => l.status === stage.id);
 
-                                // Calculate leads moved here in last 24h
                                 const oneDayAgo = new Date();
                                 oneDayAgo.setDate(oneDayAgo.getDate() - 1);
                                 const recentMoves = stageLeads.filter(l => new Date(l.lastStatusChange) > oneDayAgo).length;
@@ -399,6 +434,55 @@ const Pipeline: React.FC<PipelineProps> = ({ onLeadClick }) => {
                                 className="px-5 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all flex items-center gap-2"
                             >
                                 <Trash2 size={18} /> {showBulkDeleteConfirm ? 'Excluir Todos' : 'Confirmar Exclusão'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Ganho Modal — Valor Final da Venda */}
+            {ganhoModalLead && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm animate-fade-in px-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-100">
+                        <div className="flex justify-between items-start mb-2">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-green-50 rounded-full text-green-600">
+                                    <DollarSign size={24} />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900">Negócio Fechado!</h3>
+                            </div>
+                            <button onClick={cancelGanho} className="text-gray-400 hover:text-gray-600">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <p className="text-gray-500 text-sm mb-6 pl-1">Informe o valor final da venda para registrar a receita corretamente.</p>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Valor Final da Venda (R$)</label>
+                            <input
+                                type="number"
+                                value={ganhoValor}
+                                onChange={e => setGanhoValor(e.target.value)}
+                                autoFocus
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none text-lg font-semibold"
+                                placeholder="Ex: 85000"
+                            />
+                            <p className="text-xs text-gray-400 mt-1">Deixe em 0 se não quiser registrar valor agora.</p>
+                        </div>
+                        <div className="flex gap-3 justify-end mt-6">
+                            <button
+                                onClick={cancelGanho}
+                                disabled={ganhoSaving}
+                                className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmGanho}
+                                disabled={ganhoSaving}
+                                className="px-5 py-2.5 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 shadow-lg shadow-green-600/20 transition-all flex items-center gap-2 disabled:opacity-60"
+                            >
+                                {ganhoSaving && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>}
+                                <Check size={18} /> Confirmar Venda
                             </button>
                         </div>
                     </div>

@@ -2,7 +2,7 @@
 // Delay removed
 
 import { supabase } from './supabaseClient';
-import { Lead, LeadStatus, WatchInterest } from '../types';
+import { Lead, LeadStatus, WatchInterest, Note } from '../types';
 
 const BRAND_PREFIXES: Record<string, string> = {
   'rolex': 'RO',
@@ -77,7 +77,9 @@ export class SupabaseService {
       }] : [],
       notes: [],
       tags: data.qualificado ? ['Qualificado'] : [],
-      addedAt: new Date(data.created_at).toLocaleDateString()
+      addedAt: new Date(data.created_at).toLocaleDateString(),
+      valorFinalVenda: data.valor_final_venda != null ? parseFloat(data.valor_final_venda) : undefined,
+      estoqueId: data.estoque_id != null ? data.estoque_id.toString() : undefined,
     };
   }
 
@@ -126,6 +128,32 @@ export class SupabaseService {
     if (error) console.error('Error updating status:', error);
   }
 
+  async markLeadAsGanho(leadId: string, valorFinalVenda: number, estoqueId?: string): Promise<void> {
+    const { error } = await supabase
+      .from('leads')
+      .update({
+        etapa_kanban: 'Ganho',
+        valor_final_venda: valorFinalVenda,
+        ultima_interecao: new Date().toISOString()
+      })
+      .eq('id', leadId);
+
+    if (error) throw new Error(`Erro ao marcar como ganho: ${error.message}`);
+
+    if (estoqueId) {
+      await this.deleteInventoryItem(estoqueId);
+    }
+  }
+
+  async linkWatchToLead(leadId: string, estoqueId: string): Promise<void> {
+    const { error } = await supabase
+      .from('leads')
+      .update({ estoque_id: parseInt(estoqueId) })
+      .eq('id', leadId);
+
+    if (error) throw new Error(`Erro ao vincular relógio: ${error.message}`);
+  }
+
   async deleteLead(id: string): Promise<void> {
     const { error } = await supabase
       .from('leads')
@@ -154,8 +182,6 @@ export class SupabaseService {
     if (data.budget) updates.orcamento_disp = data.budget;
     if (data.status) updates.etapa_kanban = data.status;
 
-    // Note: location and handle are not in the DB schema provided, so skipping for now to avoid errors.
-
     const { error } = await supabase
       .from('leads')
       .update(updates)
@@ -181,7 +207,7 @@ export class SupabaseService {
       content: n.content,
       author: n.author || 'Sales Rep',
       createdAt: new Date(n.created_at).toLocaleString('pt-BR'),
-      isMe: true // Assuming all notes fetched are "internal" and thus "me" for now
+      isMe: true
     }));
   }
 
@@ -211,7 +237,7 @@ export class SupabaseService {
       .insert({
         lead_id: leadId,
         content: content,
-        author: 'Você' // Fixed author for now
+        author: 'Você'
       });
 
     if (error) console.error('Error adding note:', error);
@@ -254,15 +280,16 @@ export class SupabaseService {
       size: item.tamanho || '',
       year: item.ano || '',
       price: parseFloat(item.preco_venda?.replace('R$', '').trim().replace(/\./g, '').replace(',', '.') || '0'),
+      precoCusto: item.preco_custo
+        ? parseFloat(item.preco_custo.replace('R$', '').trim().replace(/\./g, '').replace(',', '.') || '0')
+        : undefined,
       image: item.foto_url || 'https://placehold.co/300x300',
     }));
   }
 
   async addInventoryItem(item: Omit<WatchInterest, 'id' | 'reference'> & { image?: string }): Promise<void> {
-    // Format price to "R$ XX.XXX,XX"
     const formattedPrice = `R$ ${item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-    // Generate REF based on brand prefix + sequential count per brand
     const { count } = await supabase
       .from('estoque')
       .select('*', { count: 'exact', head: true })
@@ -280,6 +307,9 @@ export class SupabaseService {
         tamanho: item.size,
         ano: item.year,
         preco_venda: formattedPrice,
+        preco_custo: item.precoCusto != null && item.precoCusto > 0
+          ? `R$ ${item.precoCusto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : null,
         ref: ref,
         foto_url: item.image || null,
       });
@@ -296,6 +326,11 @@ export class SupabaseService {
     if (item.price !== undefined) {
       updates.preco_venda = `R$ ${item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
+    if (item.precoCusto !== undefined) {
+      updates.preco_custo = item.precoCusto > 0
+        ? `R$ ${item.precoCusto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : null;
+    }
     if (item.image !== undefined) updates.foto_url = item.image || null;
 
     const { error } = await supabase
@@ -304,6 +339,15 @@ export class SupabaseService {
       .eq('id', id);
 
     if (error) throw new Error(`Erro ao atualizar relógio: ${error.message}`);
+  }
+
+  async deleteInventoryItem(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('estoque')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new Error(`Erro ao excluir relógio: ${error.message}`);
   }
 
   subscribeToInventory(onUpdate: (items: WatchInterest[]) => void): () => void {
@@ -336,17 +380,10 @@ export class SupabaseService {
     const activeLeads = leads.filter(l => l.status !== 'Perdido' && l.status !== 'Ganho').length;
     const totalInventory = inventory.length;
 
-    // Estimate pipeline value from "orcamento_disp" of active leads
-    // Assuming format "80.000" or similar. Clean non-numeric chars except dot/comma?
-    // Actually, checking previous data sample: "orcamento_disp": "80.000".
-    // Need to parse similar to price.
     const pipelineValue = leads
       .filter(l => l.status !== 'Perdido' && l.status !== 'Ganho')
       .reduce((sum, lead) => {
         const val = parseFloat(lead.budget.replace(/[^\d]/g, '') || '0');
-        // Check if it's potentially missing decimals or thousands. 
-        // If "80.000" -> 80000. If "80,000" -> 80000.
-        // Simplified parsing: remove non-digits. 
         return sum + val;
       }, 0);
 
@@ -364,45 +401,32 @@ export class SupabaseService {
   async getAnalyticsData() {
     const leads = await this.getLeads();
 
-    // Conversion Rate: Won / Total
     const wonLeads = leads.filter(l => l.status === 'Ganho');
     const totalLeads = leads.length;
     const conversionRate = totalLeads > 0 ? ((wonLeads.length / totalLeads) * 100).toFixed(1) : '0';
 
-    // Total Revenue (Est.) - Sum of budgets of won leads
+    // Total Revenue: soma do valor_final_venda dos leads ganhos
     const totalRevenue = wonLeads.reduce((sum, lead) => {
-      const val = parseFloat(lead.budget.replace(/[^\d]/g, '') || '0');
-      return sum + val;
+      return sum + (lead.valorFinalVenda ?? 0);
     }, 0);
 
-    // Chart Data: Group by date (last 7 days)
-    // Map last 7 days, count leads per day
     const chartData = [];
     const today = new Date();
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
-      const dateStr = d.toLocaleDateString('pt-BR'); // "DD/MM/YYYY" or similar depending on locale, but standard matches
+      const dateStr = d.toLocaleDateString('pt-BR');
 
-      // Count leads created on this date
-      // lead.addedAt is "D/M/YYYY" or similar from toLocaleDateString
-      // We need robust comparison. simpler to compare date parts.
+      const count = leads.filter(l => l.addedAt === dateStr).length;
 
-      const count = leads.filter(l => {
-        // l.addedAt is string. Parse it or rely on string match if format same.
-        // l.addedAt was set via toLocaleDateString() in mapLeadFromDB.
-        return l.addedAt === dateStr;
-      }).length;
-
-      // Estimate revenue for that day
       const dayRevenue = leads
         .filter(l => l.addedAt === dateStr && l.status === 'Ganho')
-        .reduce((sum, l) => sum + parseFloat(l.budget.replace(/[^\d]/g, '') || '0'), 0);
+        .reduce((sum, l) => sum + (l.valorFinalVenda ?? 0), 0);
 
       chartData.push({
-        name: dateStr.slice(0, 5), // "DD/MM"
+        name: dateStr.slice(0, 5),
         leads: count,
-        value: dayRevenue, // Revenue
+        value: dayRevenue,
         sales: leads.filter(l => l.addedAt === dateStr && l.status === 'Ganho').length
       });
     }
