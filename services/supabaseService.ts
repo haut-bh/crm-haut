@@ -235,12 +235,13 @@ export class SupabaseService {
     const { error } = await supabase
       .from('lead_notes')
       .insert({
-        lead_id: leadId,
+        lead_id: parseInt(leadId, 10),
         content: content,
-        author: 'Você'
+        author: 'Você',
+        created_at: new Date().toISOString(),
       });
 
-    if (error) console.error('Error adding note:', error);
+    if (error) throw new Error(error.message);
   }
 
   // --- INVENTORY (ESTOQUE) ---

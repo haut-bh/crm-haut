@@ -12,6 +12,8 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead: initialLead, onBack }) =>
     const [lead, setLead] = useState(initialLead);
     const [notes, setNotes] = useState<Note[]>([]);
     const [noteInput, setNoteInput] = useState('');
+    const [noteError, setNoteError] = useState<string | null>(null);
+    const [noteSaving, setNoteSaving] = useState(false);
 
     // Modal states
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -51,9 +53,17 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead: initialLead, onBack }) =>
 
     const handleSendNote = async () => {
         if (!noteInput.trim()) return;
-        await supabaseService.addNote(lead.id, noteInput);
-        await loadNotes();
-        setNoteInput('');
+        setNoteSaving(true);
+        setNoteError(null);
+        try {
+            await supabaseService.addNote(lead.id, noteInput);
+            await loadNotes();
+            setNoteInput('');
+        } catch (err: any) {
+            setNoteError(err?.message || 'Erro ao salvar nota.');
+        } finally {
+            setNoteSaving(false);
+        }
     };
 
     const handleUpdateProfile = async () => {
@@ -283,20 +293,27 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead: initialLead, onBack }) =>
                         </div>
 
                         <div className="p-4 border-t border-gray-100 bg-white rounded-b-2xl">
+                            {noteError && (
+                                <p className="text-xs text-red-500 mb-2 px-1">{noteError}</p>
+                            )}
                             <div className="relative">
                                 <input
                                     type="text"
-                                    className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-sm"
+                                    className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-sm disabled:opacity-50"
                                     placeholder="Adicionar nota..."
                                     value={noteInput}
+                                    disabled={noteSaving}
                                     onChange={(e) => setNoteInput(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSendNote()}
                                 />
                                 <button
                                     onClick={handleSendNote}
-                                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${noteInput.trim() ? 'text-green-600 hover:bg-green-50' : 'text-gray-300'}`}
+                                    disabled={noteSaving}
+                                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${noteInput.trim() && !noteSaving ? 'text-green-600 hover:bg-green-50' : 'text-gray-300'}`}
                                 >
-                                    <Send size={18} />
+                                    {noteSaving
+                                        ? <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500 inline-block" />
+                                        : <Send size={18} />}
                                 </button>
                             </div>
                         </div>
