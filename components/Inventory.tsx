@@ -83,8 +83,8 @@ const Inventory: React.FC = () => {
     };
 
     const handleSave = async () => {
-        if (!formData.brand || !formData.model) {
-            setSaveError('Marca e Modelo são obrigatórios.');
+        if (!formData.brand || !formData.model || !formData.size || !formData.year || !formData.price || !formData.precoCusto) {
+            setSaveError('Todos os campos são obrigatórios.');
             return;
         }
         setSaving(true);
@@ -203,9 +203,9 @@ const Inventory: React.FC = () => {
                             <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                                 <div>
                                     <span className="text-lg font-bold text-chronos-700">R$ {watch.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                    {watch.precoCusto != null && watch.precoCusto > 0 && (
-                                        <p className="text-xs text-gray-400 mt-0.5">Custo: R$ {watch.precoCusto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                                    )}
+                                    <p className="text-xs text-gray-400 mt-0.5">
+                                        Custo: {watch.precoCusto != null ? `R$ ${watch.precoCusto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
+                                    </p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <button className="text-xs font-semibold text-gray-900 hover:text-chronos-600">Editar</button>
@@ -309,7 +309,7 @@ const Inventory: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tamanho (Ex: 41mm)</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tamanho (Ex: 41mm) <span className="text-red-400">*</span></label>
                                     <input
                                         type="text"
                                         value={formData.size}
@@ -318,7 +318,7 @@ const Inventory: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Ano</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Ano <span className="text-red-400">*</span></label>
                                     <input
                                         type="text"
                                         value={formData.year}
@@ -328,7 +328,7 @@ const Inventory: React.FC = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Venda (R$)</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Venda (R$) <span className="text-red-400">*</span></label>
                                 <input
                                     type="number"
                                     value={formData.price}
@@ -337,13 +337,12 @@ const Inventory: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Custo (R$)</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Preço de Custo (R$) <span className="text-red-400">*</span></label>
                                 <input
                                     type="number"
                                     value={formData.precoCusto}
                                     onChange={e => setFormData({ ...formData, precoCusto: e.target.value })}
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-chronos-500 focus:outline-none"
-                                    placeholder="Opcional"
                                 />
                             </div>
                         </div>
