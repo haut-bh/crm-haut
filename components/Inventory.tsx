@@ -12,6 +12,7 @@ const Inventory: React.FC = () => {
     const [saveError, setSaveError] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [formData, setFormData] = useState({
         brand: '',
@@ -168,6 +169,8 @@ const Inventory: React.FC = () => {
                     <input
                         type="text"
                         placeholder="Buscar por marca, modelo ou referência..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
                         className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-chronos-500"
                     />
                 </div>
@@ -178,7 +181,16 @@ const Inventory: React.FC = () => {
                     <div className="col-span-full flex justify-center py-20">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-chronos-900"></div>
                     </div>
-                ) : inventory.length > 0 ? inventory.map((watch, idx) => (
+                ) : (() => {
+                    const term = searchTerm.toLowerCase().trim();
+                    const filtered = term
+                        ? inventory.filter(w =>
+                            w.brand.toLowerCase().includes(term) ||
+                            w.model.toLowerCase().includes(term) ||
+                            (w.reference && w.reference.toLowerCase().includes(term))
+                        )
+                        : inventory;
+                    return filtered.length > 0 ? filtered.map((watch, idx) => (
                     <div key={idx} onClick={() => handleOpenModal(watch)} className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow group cursor-pointer relative">
                         <div className="h-48 bg-gray-50 flex items-center justify-center p-4 relative">
                             <img src={watch.image} alt={watch.model} className="h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300" />
@@ -224,17 +236,19 @@ const Inventory: React.FC = () => {
                     <div className="col-span-full text-center py-20 text-gray-500">
                         <div className="bg-gray-50 rounded-2xl p-10 border border-dashed border-gray-200 inline-block">
                             <Tag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900">Estoque Vazio</h3>
-                            <p className="text-gray-500 mt-1">Nenhum item registrado no momento.</p>
+                            <h3 className="text-lg font-medium text-gray-900">{term ? 'Nenhum resultado encontrado' : 'Estoque Vazio'}</h3>
+                            <p className="text-gray-500 mt-1">{term ? 'Tente buscar com outros termos.' : 'Nenhum item registrado no momento.'}</p>
                         </div>
                     </div>
-                )}
+                );
+                })()}
             </div>
 
             {/* Add/Edit Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl transform transition-all scale-100 max-h-[90vh] overflow-y-auto">
+                      <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
                         <h2 className="text-2xl font-serif font-bold text-gray-900 mb-6">{editingItem ? 'Editar Relógio' : 'Adicionar Novo Relógio'}</h2>
 
                         <div className="space-y-4">
@@ -356,6 +370,7 @@ const Inventory: React.FC = () => {
 
                         <div className="flex justify-end space-x-3 mt-8">
                             <button
+                                type="button"
                                 onClick={() => setIsModalOpen(false)}
                                 disabled={saving}
                                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
@@ -363,7 +378,7 @@ const Inventory: React.FC = () => {
                                 Cancelar
                             </button>
                             <button
-                                onClick={handleSave}
+                                type="submit"
                                 disabled={saving}
                                 className="px-6 py-2 bg-chronos-900 text-white rounded-lg hover:bg-chronos-800 transition-colors font-medium shadow-md hover:shadow-lg disabled:opacity-60 flex items-center gap-2"
                             >
@@ -371,6 +386,7 @@ const Inventory: React.FC = () => {
                                 {editingItem ? 'Salvar Alterações' : 'Adicionar Relógio'}
                             </button>
                         </div>
+                      </form>
                     </div>
                 </div>
             )}
