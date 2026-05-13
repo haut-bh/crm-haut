@@ -1,4 +1,4 @@
-export type LeadStatus = 'Novo Lead' | 'Qualificado' | 'Follow-up' | 'Agendou Visita' | 'Em Negociação' | 'Ganho' | 'Perdido';
+export type LeadStatus = 'Novo Lead' | 'Qualificado' | 'Follow-up' | 'Encaminhado para WhatsApp' | 'Em Negociação' | 'Ganho' | 'Perdido';
 
 export interface WatchInterest {
   id: string;
@@ -32,7 +32,6 @@ export interface Lead {
   lastStatusChange: string; // ISO Date string for tracking movement
   lastActive: string;
   source: string; // e.g., Instagram, Website
-  budget: string;
   interests: WatchInterest[];
   notes: Note[];
   tags: string[]; // e.g. "VIP Referral", "High Intent"

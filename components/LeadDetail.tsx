@@ -21,8 +21,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead: initialLead, onBack }) =>
     const [formData, setFormData] = useState({
         name: initialLead.name,
         email: initialLead.email,
-        phone: initialLead.phone,
-        budget: initialLead.budget
+        phone: initialLead.phone
     });
 
     // Ganho modal states
@@ -114,7 +113,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead: initialLead, onBack }) =>
 
     const linkedWatch = lead.estoqueId ? inventory.find(w => w.id === lead.estoqueId) : null;
 
-    const statusOptions: LeadStatus[] = ['Novo Lead', 'Qualificado', 'Follow-up', 'Agendou Visita', 'Em Negociação', 'Ganho', 'Perdido'];
+    const statusOptions: LeadStatus[] = ['Novo Lead', 'Qualificado', 'Follow-up', 'Encaminhado para WhatsApp', 'Em Negociação', 'Ganho', 'Perdido'];
 
     return (
         <div className="animate-fade-in max-w-6xl mx-auto pb-10 relative">
@@ -155,7 +154,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead: initialLead, onBack }) =>
                             <div className="flex items-center gap-3 mt-1 text-gray-500 text-sm">
                                 <span className="font-medium text-gray-700">{lead.handle}</span>
                                 <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-800">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${lead.status === 'Encaminhado para WhatsApp' ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-gray-100 text-gray-800'}`}>
                                     {lead.status}
                                 </span>
                                 {lead.status === 'Ganho' && lead.valorFinalVenda != null && lead.valorFinalVenda > 0 && (
@@ -199,13 +198,6 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead: initialLead, onBack }) =>
                                 <div>
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Telefone</p>
                                     <p className="text-gray-900 font-medium">{lead.phone}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-4">
-                                <div className="p-2 bg-green-50 rounded-lg text-green-600"><Globe size={20} /></div>
-                                <div>
-                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Orçamento</p>
-                                    <p className="text-gray-900 font-medium">{lead.budget || 'Não informado'}</p>
                                 </div>
                             </div>
                         </div>
@@ -357,15 +349,6 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead: initialLead, onBack }) =>
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-green-500"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Orçamento Disponível</label>
-                                <input
-                                    type="text"
-                                    value={formData.budget}
-                                    onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-green-500"
-                                />
-                            </div>
                         </div>
                         <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3">
                             <button onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button>
@@ -391,7 +374,7 @@ const LeadDetail: React.FC<LeadDetailProps> = ({ lead: initialLead, onBack }) =>
                                 {statusOptions.map((status) => (
                                     <button
                                         key={status}
-                                        onClick={() => handleStatusChange(status)}
+                                        onClick={() => handleStatusChange(status as LeadStatus)}
                                         className={`w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center justify-between group ${lead.status === status
                                                 ? 'border-green-500 bg-green-50 text-green-700'
                                                 : 'border-gray-100 hover:border-green-200 hover:bg-gray-50'

@@ -3,6 +3,7 @@
 
 import { supabase } from './supabaseClient';
 import { Lead, LeadStatus, WatchInterest, Note } from '../types';
+import { metaConversionsService } from './metaConversionsService';
 
 const BRAND_PREFIXES: Record<string, string> = {
   'rolex': 'RO',
@@ -47,7 +48,7 @@ export class SupabaseService {
       if (s === 'novo lead' || s === 'novo') return 'Novo Lead';
       if (s === 'qualificado') return 'Qualificado';
       if (s === 'follow-up' || s === 'followup') return 'Follow-up';
-      if (s === 'visita' || s === 'agendou visita' || s === 'agendou') return 'Agendou Visita';
+      if (s === 'visita' || s === 'agendou visita' || s === 'agendou' || s === 'whatsapp' || s === 'encaminhado para whatsapp') return 'Encaminhado para WhatsApp';
       if (s === 'em negociação' || s === 'em negociacao' || s === 'negociacao' || s === 'negociação' || s === 'proposta') return 'Em Negociação';
       if (s === 'ganho' || s === 'ganhou' || s === 'fechado') return 'Ganho';
       if (s === 'perdido') return 'Perdido';
@@ -66,7 +67,6 @@ export class SupabaseService {
       lastStatusChange: data.ultima_interecao || new Date().toISOString(),
       lastActive: data.ultima_interecao || new Date().toISOString(),
       source: 'Supabase',
-      budget: data.orcamento_disp || '',
       interests: data.relogio_interesse ? [{
         id: '1',
         brand: 'Unknown',
@@ -125,10 +125,29 @@ export class SupabaseService {
       })
       .eq('id', id);
 
-    if (error) console.error('Error updating status:', error);
+    if (error) {
+      console.error('Error updating status:', error);
+      return;
+    }
+
+    // Meta CAPI: Disparar QualifiedLead quando mover para "Encaminhado para WhatsApp"
+    if (status === 'Encaminhado para WhatsApp') {
+      const { data: leadData } = await supabase.from('leads').select('*').eq('id', id).single();
+      if (leadData) {
+        metaConversionsService.sendQualifiedLead({
+          id: leadData.id.toString(),
+          name: leadData.nome || undefined,
+          email: leadData.email || undefined,
+          phone: leadData.telefone || undefined,
+        }).catch(() => {}); // fire-and-forget
+      }
+    }
   }
 
   async markLeadAsGanho(leadId: string, valorFinalVenda: number, estoqueId?: string): Promise<void> {
+    // Buscar dados do lead ANTES de atualizar para ter info para a Meta
+    const { data: leadData } = await supabase.from('leads').select('*').eq('id', leadId).single();
+
     const { error } = await supabase
       .from('leads')
       .update({
@@ -142,6 +161,19 @@ export class SupabaseService {
 
     if (estoqueId) {
       await this.deleteInventoryItem(estoqueId);
+    }
+
+    // Meta CAPI: Disparar Purchase quando mover para "Ganho"
+    if (leadData) {
+      metaConversionsService.sendPurchase(
+        {
+          id: leadData.id.toString(),
+          name: leadData.nome || undefined,
+          email: leadData.email || undefined,
+          phone: leadData.telefone || undefined,
+        },
+        valorFinalVenda
+      ).catch(() => {}); // fire-and-forget
     }
   }
 
@@ -179,7 +211,6 @@ export class SupabaseService {
     if (data.name) updates.nome = data.name;
     if (data.phone) updates.telefone = data.phone;
     if (data.email) updates.email = data.email;
-    if (data.budget) updates.orcamento_disp = data.budget;
     if (data.status) updates.etapa_kanban = data.status;
 
     const { error } = await supabase
@@ -211,24 +242,35 @@ export class SupabaseService {
     }));
   }
 
-  async addLead(data: { name: string; email: string; phone: string; budget: string; watchInterest: string; objetivo?: string; qualificado?: boolean }): Promise<void> {
+  async addLead(data: { name: string; email: string; phone: string; watchInterest: string; objetivo?: string; qualificado?: boolean }): Promise<void> {
     const now = new Date().toISOString();
-    const { error } = await supabase
+    const { data: insertedData, error } = await supabase
       .from('leads')
       .insert({
         nome: data.name,
         email: data.email || null,
         telefone: data.phone || null,
-        orcamento_disp: data.budget || null,
         relogio_interesse: data.watchInterest || null,
         objetivo: data.objetivo || null,
         qualificado: data.qualificado ?? false,
         etapa_kanban: 'Novo Lead',
         created_at: now,
         ultima_interecao: now,
-      });
+      })
+      .select('id')
+      .single();
 
     if (error) throw new Error(`Erro ao criar lead: ${error.message}`);
+
+    // Meta CAPI: Disparar LeadSubmitted quando um novo lead é criado
+    if (insertedData) {
+      metaConversionsService.sendLeadSubmitted({
+        id: insertedData.id.toString(),
+        name: data.name || undefined,
+        email: data.email || undefined,
+        phone: data.phone || undefined,
+      }).catch(() => {}); // fire-and-forget
+    }
   }
 
   async addNote(leadId: string, content: string): Promise<void> {
@@ -384,8 +426,8 @@ export class SupabaseService {
     const pipelineValue = leads
       .filter(l => l.status !== 'Perdido' && l.status !== 'Ganho')
       .reduce((sum, lead) => {
-        const val = parseFloat(lead.budget.replace(/[^\d]/g, '') || '0');
-        return sum + val;
+        // Budget removed from DB, so pipeline value calculation from budget is disabled
+        return sum + 0;
       }, 0);
 
     const recentLeads = leads.slice(0, 5);

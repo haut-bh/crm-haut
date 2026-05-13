@@ -9,7 +9,7 @@ const Clients: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false);
-  const [leadForm, setLeadForm] = useState({ name: '', email: '', phone: '', budget: '', watchInterest: '', objetivo: '', qualificado: false });
+  const [leadForm, setLeadForm] = useState({ name: '', email: '', phone: '', watchInterest: '', objetivo: '', qualificado: false });
   const [leadSaving, setLeadSaving] = useState(false);
   const [leadError, setLeadError] = useState<string | null>(null);
 
@@ -58,7 +58,7 @@ const Clients: React.FC = () => {
       const data = await supabaseService.getLeads();
       setLeads(data);
       setIsNewLeadOpen(false);
-      setLeadForm({ name: '', email: '', phone: '', budget: '', watchInterest: '', objetivo: '', qualificado: false });
+      setLeadForm({ name: '', email: '', phone: '', watchInterest: '', objetivo: '', qualificado: false });
     } catch (err: any) {
       setLeadError(err?.message || 'Erro ao salvar. Tente novamente.');
     } finally {
@@ -86,7 +86,7 @@ const Clients: React.FC = () => {
                 </button>
             )}
             <button
-                onClick={() => { setLeadError(null); setLeadForm({ name: '', email: '', phone: '', budget: '', watchInterest: '' }); setIsNewLeadOpen(true); }}
+                onClick={() => { setLeadError(null); setLeadForm({ name: '', email: '', phone: '', watchInterest: '' }); setIsNewLeadOpen(true); }}
                 className="flex items-center space-x-1 px-4 py-2 bg-chronos-900 text-white rounded-lg text-sm hover:bg-chronos-800 transition-colors"
             >
                 <UserPlus size={16} /> <span>Novo Lead</span>
@@ -115,7 +115,6 @@ const Clients: React.FC = () => {
                     <th className="px-6 py-4">Cliente</th>
                     <th className="px-6 py-4">Contato</th>
                     <th className="px-6 py-4">Localização</th>
-                    <th className="px-6 py-4">Valor Total</th>
                     <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4"></th>
                 </tr>
@@ -150,9 +149,6 @@ const Clients: React.FC = () => {
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-600">
                                 {client.location}
-                            </td>
-                            <td className="px-6 py-4 text-sm font-bold text-gray-900">
-                                {client.budget}
                             </td>
                             <td className="px-6 py-4">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
@@ -227,16 +223,6 @@ const Clients: React.FC = () => {
                     placeholder="email@exemplo.com"
                   />
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Orçamento Disponível</label>
-                <input
-                  type="text"
-                  value={leadForm.budget}
-                  onChange={e => setLeadForm({ ...leadForm, budget: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-chronos-500 focus:outline-none"
-                  placeholder="Ex: 50.000"
-                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Relógio de Interesse</label>

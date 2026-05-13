@@ -60,12 +60,12 @@ const App: React.FC = () => {
 
   // Global "Novo Lead" modal
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false);
-  const [leadForm, setLeadForm] = useState({ name: '', email: '', phone: '', budget: '', watchInterest: '', objetivo: '', qualificado: false });
+  const [leadForm, setLeadForm] = useState({ name: '', email: '', phone: '', watchInterest: '', objetivo: '', qualificado: false });
   const [leadSaving, setLeadSaving] = useState(false);
   const [leadError, setLeadError] = useState<string | null>(null);
 
   const openNewLeadModal = () => {
-    setLeadForm({ name: '', email: '', phone: '', budget: '', watchInterest: '', objetivo: '', qualificado: false });
+    setLeadForm({ name: '', email: '', phone: '', watchInterest: '', objetivo: '', qualificado: false });
     setLeadError(null);
     setIsNewLeadOpen(true);
   };
@@ -287,11 +287,6 @@ const App: React.FC = () => {
                   <input type="email" value={leadForm.email} onChange={e => setLeadForm({ ...leadForm, email: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-chronos-500 focus:outline-none" placeholder="email@exemplo.com" />
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Orçamento Disponível</label>
-                <input type="text" value={leadForm.budget} onChange={e => setLeadForm({ ...leadForm, budget: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-chronos-500 focus:outline-none" placeholder="Ex: 50.000" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Relógio de Interesse</label>

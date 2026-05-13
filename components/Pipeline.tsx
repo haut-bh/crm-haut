@@ -10,7 +10,7 @@ const getStatusColor = (status: LeadStatus) => {
         case 'Novo Lead': return 'bg-blue-50 text-blue-700 border-blue-100';
         case 'Qualificado': return 'bg-yellow-50 text-yellow-700 border-yellow-100';
         case 'Follow-up': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
-        case 'Agendou Visita': return 'bg-purple-50 text-purple-700 border-purple-100';
+        case 'Encaminhado para WhatsApp': return 'bg-purple-50 text-purple-700 border-purple-100';
         case 'Em Negociação': return 'bg-orange-50 text-orange-700 border-orange-100';
         case 'Ganho': return 'bg-green-50 text-green-700 border-green-100';
         case 'Perdido': return 'bg-red-50 text-red-700 border-red-100';
@@ -281,7 +281,7 @@ const Pipeline: React.FC<PipelineProps> = ({ onLeadClick }) => {
         { id: 'Novo Lead', label: 'Novos Leads', color: 'bg-blue-500' },
         { id: 'Qualificado', label: 'Qualificados', color: 'bg-yellow-500' },
         { id: 'Follow-up', label: 'Follow-up', color: 'bg-indigo-500' },
-        { id: 'Agendou Visita', label: 'Visita Agendada', color: 'bg-purple-500' },
+        { id: 'Encaminhado para WhatsApp', label: 'Encaminhado para WhatsApp', color: 'bg-purple-500' },
         { id: 'Em Negociação', label: 'Em Negociação', color: 'bg-orange-500' },
         { id: 'Ganho', label: 'Fechados / Ganho', color: 'bg-green-500' }
     ];

@@ -29,7 +29,6 @@ const Dashboard: React.FC = () => {
     totalLeads: 0,
     activeLeads: 0,
     totalInventory: 0,
-    pipelineValue: 0,
     recentLeads: [] as Lead[]
   });
   const [loading, setLoading] = useState(true);
@@ -65,13 +64,6 @@ const Dashboard: React.FC = () => {
       trend: 'neutral',
       isPrimary: false
     },
-    {
-      label: 'Pipeline Estimado',
-      value: `R$ ${stats.pipelineValue.toLocaleString('pt-BR')}`,
-      change: '+8%',
-      trend: 'up',
-      isPrimary: true
-    }
   ];
 
   return (
@@ -98,7 +90,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {metrics.map((metric, idx) => (
           <div
             key={idx}
@@ -222,7 +214,7 @@ const Dashboard: React.FC = () => {
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wide border
                             ${lead.status === 'Em Negociação' ? 'bg-yellow-50 text-yellow-700 border-yellow-100' :
                           lead.status === 'Qualificado' ? 'bg-green-50 text-green-700 border-green-100' :
-                            lead.status === 'Agendou Visita' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                            lead.status === 'Encaminhado para WhatsApp' ? 'bg-purple-50 text-purple-700 border-purple-100' :
                               'bg-gray-50 text-gray-700 border-gray-100'}`}>
                         {lead.status}
                       </span>
